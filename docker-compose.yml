@@ -7,7 +7,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
     networks:
-      - shared-network
+      - digitalisation_toolkit-network
     restart: unless-stopped
 
   digitalisation_toolkit-frontend:
@@ -18,7 +18,7 @@ services:
     env_file:
       - ./frontend/.env
     networks:
-      - shared-network
+      - digitalisation_toolkit-network
     depends_on:
       - digitalisation_toolkit-nginx
 
@@ -29,69 +29,16 @@ services:
     env_file:
       - ./backend/.env
     networks:
-      - shared-network
+      - digitalisation_toolkit-network
     restart: unless-stopped
     depends_on:
       - digitalisation_toolkit-nginx
-
-  vllm_Qwen2.5-Coder-14B-Instruct:
-    container_name: vllm_Qwen2.5-Coder-14B-Instruct
-    image: vllm/vllm-openai:v0.6.6
-    restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    volumes:
-      - ./models/Qwen2.5-Coder-14B-Instruct:/models/Qwen2.5-Coder-14B-Instruct
-    networks:
-      - shared-network
-    ipc: host
+    runtime: nvidia
     environment:
-      - HF_HUB_OFFLINE=1
-    command: [
-      "--model", "/models/Qwen2.5-Coder-14B-Instruct",
-      "--enforce-eager",
-      "--served-model-name", "Qwen2.5-Coder-14B-Instruct",
-      "--trust-remote-code",
-      "--guided-decoding-backend", "outlines",
-      "--gpu-memory-utilization", "0.8"
-    ]
-
-  vllm_Gemma-SEA-LION-v3-9B-IT:
-    container_name: vllm_Gemma-SEA-LION-v3-9B-IT
-    image: vllm/vllm-openai:v0.6.6
-    restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    volumes:
-      - ./models/Gemma2-9B-Sealion-V3-Instruct:/models/Gemma-SEA-LION-v3-9B-IT
-    networks:
-      - shared-network
-    ipc: host
-    environment:
-      - HF_HUB_OFFLINE=1
-    command: [
-      "--dtype", "half",
-      "--max-model-len", "8192",
-      "--enforce-eager",
-      "--served-model-name", "Gemma-SEA-LION-v3-9B-IT",
-      "--model", "/models/Gemma-SEA-LION-v3-9B-IT",
-      "--trust-remote-code",
-      "--guided-decoding-backend", "outlines",
-      "--gpu-memory-utilization", "0.5"
-    ]
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 networks:
-  shared-network:
-    name: shared-network
+  digitalisation_toolkit-network:
+    name: digitalisation_toolkit-network
     driver: bridge
-

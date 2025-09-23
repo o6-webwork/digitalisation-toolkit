@@ -1,7 +1,7 @@
 # Outstanding Issues
 ### Docling:
 Docling has an issue where subsequent use would result in longer processing time for certain devices. Some fixes are available but the problem would come back after a while.
-If you wish to temporarily resolve the issue, consider the follwoing solutions
+If you wish to temporarily resolve the issue, consider the following solutions
 
 1. This may need you to update other libraries as the version of torch used is 2.4.0
 ```

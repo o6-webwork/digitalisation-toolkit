@@ -1,5 +1,9 @@
 # Digitalisation Toolkit
 
+## Prerequisites
+
+**CUDA Compatibility**: Before building the Docker containers, verify that your GPU and CUDA drivers are compatible with CUDA 12.1 (cu121), which is specified in `backend/Dockerfile` line 7. If your system uses a different CUDA version, you may need to update the PyTorch installation URL in the Dockerfile accordingly.
+
 ## Usage
 
 1. Download Docling model folder from
@@ -11,6 +15,8 @@ git lfs install
 ```
 cd backend
 git clone https://huggingface.co/ds4sd/docling-models
+cd docling-models
+git checkout 094b693
 ```
 
 2. Download the following zip files from
@@ -26,7 +32,7 @@ zh_sim_g2
 Text Detection Models
 CRAFT
 ```
-unzip them and save the 4 .pth files in the `backend/EasyOcr` folder.
+unzip them and save the 4 .pth files in the `backend/docling-models/EasyOcr` folder.
 
 3.  Build the Docker image:
 ```bash
