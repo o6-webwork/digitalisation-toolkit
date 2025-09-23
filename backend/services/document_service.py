@@ -149,14 +149,14 @@ class DocumentService:
             doc.subset_fonts()
             doc.ez_save(output_path, clean=True, deflate=True, garbage=4)
 
-        # Compress using PdfWriter
-        writer = PdfWriter(clone_from=output_path)
-        for page in writer.pages:
-            for img in page.images:
-                img.replace(img.image, quality=80)
+            # Compress using PdfWriter
+            writer = PdfWriter(clone_from=output_path)
+            for page in writer.pages:
+                for img in page.images:
+                    img.replace(img.image, quality=80)
 
-        with open(output_path, "wb") as f:
-            writer.write(f)
+            with open(output_path, "wb") as f:
+                writer.write(f)
 
             # Read final optimized PDF into memory
             with open(output_path, "rb") as f:

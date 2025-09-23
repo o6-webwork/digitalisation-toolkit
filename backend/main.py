@@ -5,7 +5,6 @@ import os
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
-import asyncio
 import json
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -161,7 +160,7 @@ async def free_processing(request: FreeProcessingRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         app_logger.error(f"Free processing endpoint error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")"
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/prompt-page")
 async def prompt_page(request: PromptPageRequest):  

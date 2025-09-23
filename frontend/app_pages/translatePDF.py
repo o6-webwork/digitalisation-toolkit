@@ -213,7 +213,7 @@ else:
             try:
                 import os
                 os.unlink(file_path)
-            except:
-                pass
+            except (OSError, FileNotFoundError):
+                pass  # File already cleaned up or doesn't exist
         else:
             st.error("Please upload a PDF file.")
