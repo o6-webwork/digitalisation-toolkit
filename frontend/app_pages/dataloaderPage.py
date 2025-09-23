@@ -25,10 +25,25 @@ if uploaded_file:
     # Store the uploaded file in session state for future use
     st.session_state.original_file = uploaded_file.name
     if uploaded_file.name.endswith(".pdf"):
-        st.session_state.pdf = uploaded_file
-        st.success("Data successfully loaded and prepared for processing!")
-        binary_data = st.session_state.pdf.getvalue()
-        pdf_viewer(input=binary_data, width=700)
+        with st.spinner("Processing PDF file..."):
+            try:
+                # Attempt to access the file content to ensure it's fully loaded
+                file_size = len(uploaded_file.getvalue())
+                st.session_state.pdf = uploaded_file
+                st.success(f"PDF successfully loaded! ({file_size:,} bytes) Ready for processing.")
+            except Exception as e:
+                st.error(f"Error processing PDF file: {e}")
+                st.info("Please try uploading the file again.")
+
+        # Optional PDF preview (can be slow for large files)
+        if st.checkbox("Preview PDF (may be slow for large files)", value=False):
+            with st.spinner("Loading PDF preview..."):
+                try:
+                    binary_data = st.session_state.pdf.getvalue()
+                    pdf_viewer(input=binary_data, width=700)
+                except Exception as e:
+                    st.error(f"Could not render PDF preview: {e}")
+                    st.info("PDF file loaded successfully but preview failed. You can still proceed with translation.")
     else:
         # Display the uploaded file content using AgGrid
         st.subheader("Uploaded File Contents")

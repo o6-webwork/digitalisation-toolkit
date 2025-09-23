@@ -8,7 +8,7 @@ from typing import List
 
 # Local imports
 from config.settings import settings
-from models.schemas import TranslationRequest, HeaderItem
+from models.schemas import TranslationRequest, HeaderItem, PromptPageRequest, StructuredInferenceRequest, FreeProcessingRequest
 from services.translation_service import TranslationService
 from services.document_service import DocumentService
 from services.llm_service import LLMService
@@ -121,26 +121,19 @@ async def translate_pdf(
 
 
 @app.post("/free-processing")
-async def free_processing(
-    text: str = Form(...),
-    system_prompt: str = Form(...),
-    user_prompt: str = Form(...),
-    url: str = Form(...),
-    authorization: str = Form(...),  
-    model_name: str = Form(...)
-):  
+async def free_processing(request: FreeProcessingRequest):  
     try:
         app_logger.info("Received free processing request")
         
         # Get API configuration
         final_url, final_auth, final_model = settings.get_api_config(
-            url, authorization, model_name
+            request.url, request.authorization, request.model_name
         )
-        
+
         result = await llm_service.free_processing(
-            text,
-            system_prompt,
-            user_prompt,
+            request.text,
+            request.system_prompt,
+            request.user_prompt,
             final_url,
             final_auth,
             final_model
@@ -153,24 +146,17 @@ async def free_processing(
         return f"Error: {str(e)}"
 
 @app.post("/prompt-page")
-async def prompt_page(
-    openaiapi: bool = Form(...),
-    schema_prompt_value: str = Form(...),
-    prompt_form_submitted: bool = Form(...),
-    url: str = Form(...),
-    authorization: str = Form(...),  
-    model_name: str = Form(...)
-):  
+async def prompt_page(request: PromptPageRequest):  
     try:
         app_logger.info("Received schema generation request")
         
         # Get API configuration
         final_url, final_auth, final_model = settings.get_api_config(
-            url, authorization, model_name
+            request.url, request.authorization, request.model_name
         )
-        
+
         result = await llm_service.generate_schema(
-            schema_prompt_value,
+            request.schema_prompt_value,
             final_url,
             final_auth,
             final_model
@@ -185,27 +171,19 @@ async def prompt_page(
 
 
 @app.post("/structured-inference")
-async def structured_inference(
-    openaiapi: bool = Body(...),
-    input_text: str = Body(...),
-    prompt_value: str = Body(...),
-    headerlist: List[HeaderItem] = Body(...),
-    url: str = Body(...),
-    authorization: str = Body(...),  
-    modelname: str = Body(...)
-):  
+async def structured_inference(request: StructuredInferenceRequest):  
     try:
         app_logger.info("Received structured inference request")
         
         # Get API configuration
         final_url, final_auth, final_model = settings.get_api_config(
-            url, authorization, modelname
+            request.url, request.authorization, request.modelname
         )
-        
+
         result = await llm_service.structured_inference(
-            input_text,
-            prompt_value,
-            headerlist,
+            request.input_text,
+            request.prompt_value,
+            request.headerlist,
             final_url,
             final_auth,
             final_model

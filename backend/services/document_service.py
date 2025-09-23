@@ -1,13 +1,11 @@
 import os
-import tempfile
-import pymupdf
 import fitz
-import asyncio
+import torch
 from pypdf import PdfReader, PdfWriter
 from docling.datamodel.base_models import InputFormat
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions
-from typing import Dict, Any, List
+from typing import Dict, Any
 from config.settings import settings
 from utils.logger import app_logger
 from .translation_service import TranslationService
@@ -17,6 +15,14 @@ class DocumentService:
 
     def __init__(self):
         self.translation_service = TranslationService()
+
+        # Log GPU availability for informational purposes
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            app_logger.info(f"Detected {gpu_count} CUDA devices: {[f'cuda:{i}' for i in range(gpu_count)]}")
+        else:
+            app_logger.info("No CUDA devices detected, using CPU")
+
 
     async def translate_pdf(
         self,
@@ -34,24 +40,25 @@ class DocumentService:
 
             # Validate PDF
             reader = PdfReader(file_path)
-            if len(reader.pages) == 0:
+            total_pages = len(reader.pages)
+            if total_pages == 0:
                 raise ValueError("The PDF document is empty.")
         except Exception as e:
             raise Exception(f"Error: The PDF file is corrupted or invalid. {str(e)}")
 
-        app_logger.info("Converting document structure")
+        # Process document structure
+        app_logger.info("Processing PDF document")
         redoc = self._convert_document_structure(file_path)
         doc_info = redoc["Pages"]
 
         # Collect all texts for batch translation
         all_texts = []
-        text_mapping = {}  # Maps text to its page and element info
+        text_mapping = {}
 
         for page_no, page_data in doc_info.items():
-            # Collect text elements
             for i, text_info in enumerate(page_data["Texts"]):
                 text_content = text_info["text"]
-                if text_content.strip():  # Only translate non-empty texts
+                if text_content.strip():
                     all_texts.append(text_content)
                     text_mapping[text_content] = {
                         "page_no": page_no,
@@ -60,12 +67,11 @@ class DocumentService:
                         "bbox": text_info["bbox"]
                     }
 
-            # Collect table texts if requested
             if include_tbl:
                 for table_i, table_info in enumerate(page_data["Tables"]):
                     for cell_i, cell in enumerate(table_info["table_cells"]):
                         table_text = cell["text"]
-                        if table_text.strip():  # Only translate non-empty texts
+                        if table_text.strip():
                             all_texts.append(table_text)
                             text_mapping[table_text] = {
                                 "page_no": page_no,
@@ -75,14 +81,15 @@ class DocumentService:
                                 "bbox": cell["bbox"]
                             }
 
-        # Batch translate all texts concurrently
+        # Batch translate all texts
         app_logger.info(f"Batch translating {len(all_texts)} text elements")
-        translated_texts = await self.translation_service.translate_batch(
-            all_texts, input_lang, output_lang, url, authorization, model_name
-        )
-
-        # Create translation mapping
-        translation_map = dict(zip(all_texts, translated_texts))
+        if all_texts:
+            translated_texts = await self.translation_service.translate_batch(
+                all_texts, input_lang, output_lang, url, authorization, model_name
+            )
+            translation_map = dict(zip(all_texts, translated_texts))
+        else:
+            translation_map = {}
 
         output_path = "/tmp/translated.pdf"
 
@@ -156,13 +163,14 @@ class DocumentService:
     def _convert_document_structure(self, file_path: str) -> Dict[str, Any]:
         """Convert PDF to structured format using Docling"""
         app_logger.info("Setting up Docling pipeline")
-        
+
+        # Configure OCR options
         ocr_options = EasyOcrOptions(
             lang=["en"],
             model_storage_directory=settings.MODEL_STORAGE_DIRECTORY,
-            download_enabled=False,
+            download_enabled=False
         )
-        
+
         pipeline_options = PdfPipelineOptions(
             artifacts_path=settings.ARTIFACTS_PATH,
             enable_remote_services=False,
