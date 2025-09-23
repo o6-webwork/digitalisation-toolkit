@@ -36,7 +36,7 @@ class LLMService:
                     'messages': messages,
                 }
 
-                response_data = await client.post("", data)
+                response_data = await client.post("/v1/chat/completions", data)
                 content = response_data["choices"][0]["message"]["content"]
                 app_logger.info("Free processing completed successfully")
                 return content

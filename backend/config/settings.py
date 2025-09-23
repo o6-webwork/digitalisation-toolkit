@@ -10,7 +10,8 @@ class Settings:
     TRANSLATION_API_TOKEN: str = os.getenv("TRANSLATION_API_TOKEN", "token-abc123")
     TRANSLATION_MODEL: str = os.getenv("TRANSLATION_MODEL", "sealion")
     
-    LLM_API_URL: str = os.getenv("LLM_API_URL", "http://localhost:11437/v1/chat/completions")
+    GENERAL_API_URL: str = os.getenv("GENERAL_API_URL", os.getenv("LLM_API_URL", "http://localhost:11437/v1/chat/completions"))
+    GENERAL_API_TOKEN: str = os.getenv("GENERAL_API_TOKEN", os.getenv("LLM_API_TOKEN", "token-abc123"))
     LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen2.5")
     
     # Docling Configuration
@@ -20,7 +21,7 @@ class Settings:
     @staticmethod
     def get_api_config(url: Optional[str] = None, authorization: Optional[str] = None, model_name: Optional[str] = None) -> tuple[str, str, str]:
         """Get API configuration with fallbacks to environment variables"""
-        final_url = url if url else Settings.LLM_API_URL
+        final_url = url if url else Settings.GENERAL_API_URL
         final_auth = authorization if authorization else Settings.TRANSLATION_API_TOKEN
         final_model = model_name if model_name else Settings.LLM_MODEL
         

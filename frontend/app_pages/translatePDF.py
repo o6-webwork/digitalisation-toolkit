@@ -41,7 +41,7 @@ if 'pdf' not in st.session_state or st.session_state.pdf is None:
     st.warning("No data loaded. Please go to the Data Loader page and upload a pdf file.")
 else:
 # Language selection
-    input_language = st.selectbox("Select Input Language (optional)", options=[""] + [code for code in LANGCODES])
+    input_language = st.selectbox("Select Input Language (optional)", options=[""] + [code for code in LANGCODES], format_func=lambda x: "Automatic" if x == "" else x)
     output_language = st.selectbox("Select Output Language", options=[code for code in LANGCODES])
 
     # Save Options
@@ -78,9 +78,9 @@ else:
                 'input_language': input_lang,
                 'output_language': output_lang,
                 'include_tbl_content': include_tbl_content,
-                'url': st.session_state.openaiapiurl + "/v1/chat/completions",
+                'url': st.session_state.openaiapiurl,
                 'authorization':st.session_state.openapitoken,
-                'translation_model_name':st.session_state['selected_model']
+                'translation_model_name':st.session_state.get('selected_model', 'default')
             }
 
             print(data)

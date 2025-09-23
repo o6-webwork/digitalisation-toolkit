@@ -56,10 +56,10 @@ st.session_state.openaiapi = True
 selected_page = st.navigation(page_dict)
 translation_pages = [translator_pdf.title, translator.title]
 
-vllm_sealion_url = os.getenv("VLLM_SEALION_URL")
-vllm_qwen2_5_url = os.getenv("VLLM_QWEN2_5_URL")
+translation_api_url = os.getenv("TRANSLATION_API_URL")
+general_api_url = os.getenv("GENERAL_API_URL")
 # Sidebar inputs
-default_url = vllm_sealion_url if selected_page.title in translation_pages else vllm_qwen2_5_url
+default_url = translation_api_url if selected_page.title in translation_pages else general_api_url
 user_input_url = st.sidebar.text_input("API URL", value=default_url, key="openaiapiurl")
 user_input_token = st.sidebar.text_input("API Token", value="token-abc123", key="openapitoken")
 

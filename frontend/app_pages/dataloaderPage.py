@@ -5,6 +5,9 @@ from streamlit_pdf_viewer import pdf_viewer
 
 st.title("Data Loader")
 
+# Display processing limits info
+st.info("📋 **Processing Limits:** Maximum file size: 5GB | Processing timeout: 4 hours for large documents")
+
 # Initialize session state
 if "data_loaded" not in st.session_state:
     st.session_state.clear()
@@ -23,9 +26,9 @@ if uploaded_file:
     st.session_state.original_file = uploaded_file.name
     if uploaded_file.name.endswith(".pdf"):
         st.session_state.pdf = uploaded_file
+        st.success("Data successfully loaded and prepared for processing!")
         binary_data = st.session_state.pdf.getvalue()
         pdf_viewer(input=binary_data, width=700)
-        st.success("Data successfully loaded and prepared for processing!")
     else:
         # Display the uploaded file content using AgGrid
         st.subheader("Uploaded File Contents")

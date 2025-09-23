@@ -31,7 +31,7 @@ class TranslationService:
                     ]
                 }
 
-                response_data = await client.post("", translation_request)
+                response_data = await client.post("/v1/chat/completions", translation_request)
                 content = response_data["choices"][0]["message"]["content"]
                 app_logger.info("Translation completed successfully")
                 return content
@@ -78,7 +78,7 @@ class TranslationService:
                         requests.append(translation_request)
 
                     # Execute batch requests concurrently
-                    batch_responses = await client.post_batch("", requests)
+                    batch_responses = await client.post_batch("/v1/chat/completions", requests)
 
                     # Extract content from responses
                     batch_results = []

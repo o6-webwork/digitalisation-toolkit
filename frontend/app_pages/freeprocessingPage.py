@@ -42,7 +42,7 @@ def process_with_model(text, system_prompt, user_prompt):
                 'text': text,
                 'system_prompt': system_prompt,
                 'user_prompt': user_prompt,
-                'url': st.session_state.openaiapiurl + "/v1/chat/completions",
+                'url': st.session_state.openaiapiurl,
                 'authorization':st.session_state.openapitoken,
                 'model_name':st.session_state['selected_model']
             }

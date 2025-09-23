@@ -47,7 +47,7 @@ if 'selected_df' not in st.session_state or st.session_state.selected_df is None
         st.session_state.single_inference = True
         # Language selection
         st.subheader("Translation Settings")
-        input_language = st.selectbox("Select Input Language (optional)", options=[""] + LANGCODES, format_func=lambda x: "None" if x == "" else x)
+        input_language = st.selectbox("Select Input Language (optional)", options=[""] + LANGCODES, format_func=lambda x: "Automatic" if x == "" else x)
         output_language = st.selectbox("Select Output Language", options=LANGCODES)
 
         # Translation prompt generation
@@ -72,7 +72,7 @@ if 'selected_df' not in st.session_state or st.session_state.selected_df is None
                     "text": text,
                     "input_language": input_language,
                     "output_language": output_language,
-                    'url': st.session_state.openaiapiurl + "/v1/chat/completions",
+                    'url': st.session_state.openaiapiurl,
                     'authorization': st.session_state.openapitoken,
                     'translation_model_name': st.session_state['selected_model']
                 })
@@ -105,7 +105,7 @@ else:
 
     # Language selection
     st.subheader("Translation Settings")
-    input_language = st.selectbox("Select Input Language (optional)", options=[""] + LANGCODES, format_func=lambda x: "None" if x == "" else x)
+    input_language = st.selectbox("Select Input Language (optional)", options=[""] + LANGCODES, format_func=lambda x: "Automatic" if x == "" else x)
     output_language = st.selectbox("Select Output Language", options=LANGCODES)
 
     # Translation prompt generation
@@ -238,7 +238,7 @@ else:
                         "input_language": input_language,  # The language of the original text
                         "output_language": output_language,  # The desired output language
                         "user_prompt": "Translate the following text",  # You can adjust this as needed
-                        "url": st.session_state.openaiapiurl + "/v1/chat/completions",  # URL to the OpenAI API
+                        "url": st.session_state.openaiapiurl,  # URL to the OpenAI API
                         "authorization": st.session_state.openapitoken,  # Authorization token for the OpenAI API
                         "translation_model_name": st.session_state['selected_model']  # Selected model for translation
                     }
@@ -329,7 +329,7 @@ else:
                         "input_language": input_language,  # The language of the original text
                         "output_language": output_language,  # The desired output language
                         "user_prompt": "Translate the following text",  # You can adjust this as needed
-                        "url": st.session_state.openaiapiurl + "/v1/chat/completions",  # URL to the OpenAI API
+                        "url": st.session_state.openaiapiurl,  # URL to the OpenAI API
                         "authorization": st.session_state.openapitoken,  # Authorization token for the OpenAI API
                         "translation_model_name": st.session_state['selected_model']  # Selected model for translation
                     }
