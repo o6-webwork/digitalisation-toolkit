@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Callable, Optional
 from utils.api_client import APIClient
 from utils.logger import app_logger
 
@@ -90,6 +90,83 @@ class TranslationService:
                             batch_results.append(f"Translation error: {str(e)}")
 
                     results.extend(batch_results)
+
+                app_logger.info(f"Batch translation completed successfully for {len(results)} texts")
+                return results
+
+        except Exception as e:
+            error_msg = f"Batch translation error: {str(e)}"
+            app_logger.error(error_msg)
+            return [error_msg] * len(texts)
+
+    @staticmethod
+    async def translate_batch_with_progress(
+        texts: List[str],
+        input_lang: str,
+        output_lang: str,
+        url: str,
+        authorization: str,
+        model_name: str,
+        progress_callback: Optional[Callable] = None,
+        batch_size: int = 5
+    ) -> List[str]:
+        """Translate multiple texts concurrently in batches with progress reporting"""
+        try:
+            app_logger.info(f"Batch translating {len(texts)} texts from {input_lang} to {output_lang}")
+
+            async with APIClient(url, authorization) as client:
+                results = []
+                total_batches = (len(texts) + batch_size - 1) // batch_size
+
+                # Process texts in batches to avoid overwhelming the API
+                for i in range(0, len(texts), batch_size):
+                    batch = texts[i:i + batch_size]
+                    batch_num = i // batch_size + 1
+
+                    app_logger.info(f"Processing batch {batch_num}/{total_batches}")
+
+                    if progress_callback:
+                        await progress_callback({
+                            "type": "translation_progress",
+                            "batch": batch_num,
+                            "total_batches": total_batches,
+                            "progress": (batch_num - 1) / total_batches * 100
+                        })
+
+                    # Create translation requests for this batch
+                    requests = []
+                    for text in batch:
+                        translation_request = {
+                            "model": model_name,
+                            "messages": [
+                                {
+                                    "role": "user",
+                                    "content": f"Translate the following {input_lang} text '{text}' into {output_lang} directly, without altering the original meaning. Keep all numbers, math equations, symbols, unicode, and formatting (e.g., blank lines, dashes) intact. Do not add interpretations, summaries, or personal perspectives. The translation should be natural, accurate, clean, and faithful to the original text."
+                                }
+                            ]
+                        }
+                        requests.append(translation_request)
+
+                    # Execute batch requests concurrently
+                    batch_responses = await client.post_batch("/v1/chat/completions", requests)
+
+                    # Extract content from responses
+                    batch_results = []
+                    for response_data in batch_responses:
+                        try:
+                            content = response_data["choices"][0]["message"]["content"]
+                            batch_results.append(content)
+                        except (KeyError, IndexError) as e:
+                            app_logger.error(f"Error parsing response: {e}")
+                            batch_results.append(f"Translation error: {str(e)}")
+
+                    results.extend(batch_results)
+
+                if progress_callback:
+                    await progress_callback({
+                        "type": "translation_complete",
+                        "total_translated": len(results)
+                    })
 
                 app_logger.info(f"Batch translation completed successfully for {len(results)} texts")
                 return results

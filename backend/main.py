@@ -1,8 +1,12 @@
 import mimetypes
 import tempfile
 import io
-from fastapi import FastAPI, File, UploadFile, Form
+import os
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import StreamingResponse
+from sse_starlette.sse import EventSourceResponse
+import asyncio
+import json
 from fastapi.middleware.cors import CORSMiddleware
 
 # Local imports
@@ -21,13 +25,13 @@ llm_service = LLMService()
 # Initialize FastAPI app
 app = FastAPI(title="Digitalisation Toolkit API", version="1.0.0")
 
-# Allow cross-origin requests
+# Allow cross-origin requests from specific origins only
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 @app.on_event("startup")
@@ -59,9 +63,12 @@ async def translate(request: TranslationRequest):
             model_name
         )
         return {"translated_text": translated_text}
+    except ValueError as e:
+        app_logger.error(f"Translation validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         app_logger.error(f"Translation endpoint error: {str(e)}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/translate-pdf")
 async def translate_pdf(
@@ -91,32 +98,41 @@ async def translate_pdf(
             temp_file.write(await file.read())
             temp_file_path = temp_file.name
 
-        # Get API configuration
-        final_url, final_auth, final_model = settings.get_api_config(
-            url, authorization, translation_model_name
-        )
-        
-        # Translate PDF using document service
-        translated_pdf_bytes = await document_service.translate_pdf(
-            temp_file_path,
-            input_language,
-            output_language,
-            include_tbl_content,
-            final_url,
-            final_auth,
-            final_model
-        )
-        
-        app_logger.info("Successfully generated translated PDF")
-        return StreamingResponse(
-            io.BytesIO(translated_pdf_bytes), 
-            media_type="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=translated.pdf"}
-        )
+        try:
+            # Get API configuration
+            final_url, final_auth, final_model = settings.get_api_config(
+                url, authorization, translation_model_name
+            )
 
+            # Translate PDF using document service
+            translated_pdf_bytes = await document_service.translate_pdf(
+                temp_file_path,
+                input_language,
+                output_language,
+                include_tbl_content,
+                final_url,
+                final_auth,
+                final_model
+            )
+
+            app_logger.info("Successfully generated translated PDF")
+            return StreamingResponse(
+                io.BytesIO(translated_pdf_bytes),
+                media_type="application/pdf",
+                headers={"Content-Disposition": "attachment; filename=translated.pdf"}
+            )
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+                app_logger.info(f"Cleaned up temporary file: {temp_file_path}")
+
+    except ValueError as e:
+        app_logger.error(f"PDF translation validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         app_logger.error(f"PDF translation endpoint error: {str(e)}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.post("/free-processing")
@@ -140,9 +156,12 @@ async def free_processing(request: FreeProcessingRequest):
         
         return result
         
+    except ValueError as e:
+        app_logger.error(f"Free processing validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         app_logger.error(f"Free processing endpoint error: {str(e)}")
-        return f"Error: {str(e)}"
+        raise HTTPException(status_code=500, detail="Internal server error")"
 
 @app.post("/prompt-page")
 async def prompt_page(request: PromptPageRequest):  
@@ -163,9 +182,12 @@ async def prompt_page(request: PromptPageRequest):
         
         return result
         
+    except ValueError as e:
+        app_logger.error(f"Schema generation validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         app_logger.error(f"Schema generation endpoint error: {str(e)}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail="Internal server error")
       
 
 
@@ -190,6 +212,114 @@ async def structured_inference(request: StructuredInferenceRequest):
         
         return result
         
+    except ValueError as e:
+        app_logger.error(f"Structured inference validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         app_logger.error(f"Structured inference endpoint error: {str(e)}")
-        return f"Error: {str(e)}"
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/translate-pdf-with-progress")
+async def translate_pdf_with_progress(
+    file: UploadFile = File(...),
+    input_language: str = Form(...),
+    output_language: str = Form(...),
+    include_tbl_content: bool = Form(...),
+    url: str = Form(...),
+    authorization: str = Form(...),
+    translation_model_name: str = Form(...)
+):
+    """
+    API endpoint to handle PDF translation with Server-Sent Events progress updates
+    """
+    # Validate the file extension and MIME type
+    file_extension = file.filename.split('.')[-1].lower()
+    mime_type, _ = mimetypes.guess_type(file.filename)
+
+    if file_extension != 'pdf' or mime_type != 'application/pdf':
+        raise HTTPException(status_code=400, detail="The uploaded file is not a PDF.")
+
+    # Save uploaded file temporarily
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+        temp_file.write(await file.read())
+        temp_file_path = temp_file.name
+
+    try:
+        # Get API configuration
+        final_url, final_auth, final_model = settings.get_api_config(
+            url, authorization, translation_model_name
+        )
+
+        async def generate_progress_events():
+            """Generator function for SSE progress events"""
+            # Queue to collect progress events
+            import asyncio
+            progress_queue = asyncio.Queue()
+
+            async def event_callback(data):
+                """Callback to collect progress updates"""
+                await progress_queue.put(data)
+
+            try:
+                # Start the translation process as a background task
+                translation_task = asyncio.create_task(
+                    document_service.translate_pdf_with_progress(
+                        temp_file_path,
+                        input_language,
+                        output_language,
+                        include_tbl_content,
+                        final_url,
+                        final_auth,
+                        final_model,
+                        event_callback
+                    )
+                )
+
+                # Yield progress events as they come in
+                while not translation_task.done():
+                    try:
+                        # Wait for next progress update with timeout
+                        data = await asyncio.wait_for(progress_queue.get(), timeout=1.0)
+                        yield f"data: {json.dumps(data)}\n\n"
+                    except asyncio.TimeoutError:
+                        # Send keep-alive ping
+                        yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+
+                # Get the final result
+                translated_pdf_bytes = await translation_task
+
+                # Send final completion event with PDF data
+                import base64
+                pdf_base64 = base64.b64encode(translated_pdf_bytes).decode('utf-8')
+                completion_data = {
+                    "type": "final_complete",
+                    "message": "Translation completed successfully!",
+                    "pdf_data": pdf_base64
+                }
+                yield f"data: {json.dumps(completion_data)}\n\n"
+
+            except Exception as e:
+                error_data = {
+                    "type": "error",
+                    "message": str(e)
+                }
+                yield f"data: {json.dumps(error_data)}\n\n"
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
+                    app_logger.info(f"Cleaned up temporary file: {temp_file_path}")
+
+        return EventSourceResponse(generate_progress_events())
+
+    except ValueError as e:
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        app_logger.error(f"PDF translation validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        app_logger.error(f"PDF translation endpoint error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

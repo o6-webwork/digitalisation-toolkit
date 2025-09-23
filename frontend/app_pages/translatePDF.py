@@ -6,10 +6,8 @@ import os
 import io
 import fitz
 
-try:
-    cache_function = st.cache_data  # For Streamlit 1.18 and above
-except AttributeError:
-    cache_function = st.experimental_memo  # For older versions
+# Use modern Streamlit caching
+cache_function = st.cache_data
 
 @st.dialog("Error!")
 def error_popup(e):
@@ -59,17 +57,15 @@ else:
     else:
         st.info("Processed output will be saved as a new file.")
 
-    # Define a progress bar for showing the translation progress
-    progress_bar = st.progress(0)
 
     load_dotenv()
     # FastAPI backend URL
     # backend_url = "http://localhost:8000/translate-pdf"
     backend_url = os.getenv("BACKEND_URL")
 
-    def translate_pdf(file_path, input_lang, output_lang, include_tbl_content):
+    def translate_pdf_with_progress(file_path, input_lang, output_lang, include_tbl_content):
         """
-        Sends the PDF to the FastAPI backend and returns the translated file.
+        Sends the PDF to the FastAPI backend with progress updates.
         """
         try:
             # Prepare the files and parameters for the request
@@ -79,24 +75,105 @@ else:
                 'output_language': output_lang,
                 'include_tbl_content': include_tbl_content,
                 'url': st.session_state.openaiapiurl,
-                'authorization':st.session_state.openapitoken,
-                'translation_model_name':st.session_state.get('selected_model', 'default')
+                'authorization': st.session_state.openapitoken,
+                'translation_model_name': st.session_state.get('selected_model', 'default')
             }
 
-            print(data)
+            # Use progress endpoint
+            progress_url = backend_url.replace('/translate-pdf', '/translate-pdf-with-progress')
 
-            # Send the request to the backend
-            response = requests.post(backend_url, files=files, data=data)
+            # Create progress containers
+            progress_container = st.container()
 
-            # Handle the response
-            if response.status_code == 200:
-                print("✅ Received translated PDF from backend")
-                pdf_bytes = io.BytesIO(response.content)
+            with progress_container:
+                status_text = st.empty()
+                progress_bar = st.progress(0)
+                details_text = st.empty()
 
-                return pdf_bytes
-            else:
-                st.error(f"Error: {response.text}")
-                return None
+            # Send request with streaming
+            with requests.post(progress_url, files=files, data=data, stream=True,
+                             headers={'Accept': 'text/event-stream'}) as response:
+
+                if response.status_code != 200:
+                    st.error(f"Error: {response.text}")
+                    return None
+
+                pdf_data = None
+
+                # Process Server-Sent Events
+                for line in response.iter_lines(decode_unicode=True):
+                    if line.startswith('data: '):
+                        try:
+                            import json
+                            event_data = json.loads(line[6:])  # Remove 'data: ' prefix
+
+                            if event_data.get('type') == 'document_processing_start':
+                                status_text.write("🔄 Starting document processing...")
+                                progress_bar.progress(5)
+
+                            elif event_data.get('type') == 'document_extraction':
+                                status_text.write("📄 Extracting text from PDF...")
+                                details_text.write(event_data.get('message', ''))
+                                progress_bar.progress(15)
+
+                            elif event_data.get('type') == 'document_extraction_complete':
+                                status_text.write("✅ Text extraction completed")
+                                progress_bar.progress(25)
+
+                            elif event_data.get('type') == 'translation_start':
+                                status_text.write("🔄 Starting translation...")
+                                details_text.write(event_data.get('message', ''))
+                                progress_bar.progress(30)
+
+                            elif event_data.get('type') == 'translation_progress':
+                                batch = event_data.get('batch', 0)
+                                total_batches = event_data.get('total_batches', 1)
+                                batch_progress = event_data.get('progress', 0)
+
+                                status_text.write(f"🔄 Translating batch {batch}/{total_batches}...")
+                                # Map translation progress from 30% to 80%
+                                overall_progress = 30 + (batch_progress * 0.5)
+                                progress_bar.progress(min(int(overall_progress), 80))
+
+                            elif event_data.get('type') == 'translation_complete':
+                                status_text.write("✅ Translation completed")
+                                progress_bar.progress(80)
+
+                            elif event_data.get('type') == 'pdf_generation_start':
+                                status_text.write("📝 Generating translated PDF...")
+                                progress_bar.progress(85)
+
+                            elif event_data.get('type') == 'pdf_generation_progress':
+                                page = event_data.get('page', 1)
+                                total_pages = event_data.get('total_pages', 1)
+                                status_text.write(f"📝 Processing page {page}/{total_pages}...")
+                                # Map page progress from 85% to 95%
+                                page_progress = 85 + ((page / total_pages) * 10)
+                                progress_bar.progress(min(int(page_progress), 95))
+
+                            elif event_data.get('type') == 'final_complete':
+                                status_text.write("🎉 PDF translation completed!")
+                                progress_bar.progress(100)
+                                details_text.write("Ready for download")
+
+                                # Extract PDF data
+                                if 'pdf_data' in event_data:
+                                    import base64
+                                    pdf_bytes = base64.b64decode(event_data['pdf_data'])
+                                    pdf_data = io.BytesIO(pdf_bytes)
+
+                            elif event_data.get('type') == 'error':
+                                status_text.error(f"❌ Error: {event_data.get('message')}")
+                                return None
+
+                        except json.JSONDecodeError:
+                            continue  # Skip malformed JSON
+                        except Exception as e:
+                            st.error(f"Error processing progress: {e}")
+                            continue
+
+                return pdf_data
+
         except Exception as e:
             st.error(f"An error occurred: {e}")
             return None
@@ -109,27 +186,34 @@ else:
                 temp_file.write(st.session_state.pdf.getvalue())
                 file_path = temp_file.name
 
-            wait_message = st.empty()
-            
-            wait_message.write("Translating the document... Please wait.")
-            
-            translated_pdf = translate_pdf(file_path, input_language, output_language, include_tbl_content)
+            # Use the progress-enabled translation
+            translated_pdf = translate_pdf_with_progress(file_path, input_language, output_language, include_tbl_content)
+
             if translated_pdf:
                 try:
                     pdf_check = io.BytesIO(translated_pdf.getvalue())
                     doc = fitz.open("pdf", pdf_check)
 
                     if len(doc) > 0:
-                        wait_message.empty()
-                        st.download_button("Download Translated PDF", translated_pdf.getvalue(), file_name="translated.pdf", mime="application/pdf")
+                        st.success("🎉 Translation completed successfully!")
+                        st.download_button(
+                            "📥 Download Translated PDF",
+                            translated_pdf.getvalue(),
+                            file_name="translated.pdf",
+                            mime="application/pdf"
+                        )
                     else:
-                        wait_message.empty()
                         st.error("Translation completed, but the document is empty.")
                 except Exception as e:
-                    wait_message.empty()
                     st.error(f"Error checking translated PDF: {e}")
             else:
-                wait_message.empty()
                 st.error("Failed to translate the document.")
+
+            # Clean up temporary file
+            try:
+                import os
+                os.unlink(file_path)
+            except:
+                pass
         else:
             st.error("Please upload a PDF file.")

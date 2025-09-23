@@ -32,7 +32,7 @@ zh_sim_g2
 Text Detection Models
 CRAFT
 ```
-unzip them and save the 4 .pth files in the `backend/docling-models/EasyOcr` folder.
+unzip them and save the 4 .pth files in the `backend/EasyOcr` folder.
 
 3.  Build the Docker image:
 ```bash

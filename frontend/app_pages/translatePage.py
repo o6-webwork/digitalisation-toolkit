@@ -8,11 +8,8 @@ import time
 import os
 import numpy as np
 
-# Use the appropriate caching decorator based on your Streamlit version
-try:
-    cache_function = st.cache_data  # For Streamlit 1.18 and above
-except AttributeError:
-    cache_function = st.experimental_memo  # For older versions
+# Use modern Streamlit caching
+cache_function = st.cache_data
 
 @st.dialog("Error!")
 def error_popup(e):

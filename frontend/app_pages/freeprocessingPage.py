@@ -13,11 +13,8 @@ load_dotenv()
 API_URL = os.getenv("API_URL")
 API_PORT = os.getenv("API_PORT")
 
-# Use the appropriate caching decorator based on your Streamlit version
-try:
-    cache_function = st.cache_data  # For Streamlit 1.18 and above
-except AttributeError:
-    cache_function = st.experimental_memo  # For older versions
+# Use modern Streamlit caching
+cache_function = st.cache_data
 
 if "system_prompt" not in st.session_state:
     st.session_state.system_prompt = ""

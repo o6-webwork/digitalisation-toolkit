@@ -19,11 +19,11 @@ services:
       - ./frontend/.env
     environment:
       # LLM API URLs (Replace with your actual API endpoints)
-      - TRANSLATION_API_URL=http://webworkdgx/vllm_sealion
-      - GENERAL_API_URL=http://webworkdgx/vllm_qwen2_5
-      # API Tokens
-      - TRANSLATION_API_TOKEN=token-abc123
-      - GENERAL_API_TOKEN=token-abc123
+      - TRANSLATION_API_URL=${TRANSLATION_API_URL:-http://webworkdgx/vllm_sealion}
+      - GENERAL_API_URL=${GENERAL_API_URL:-http://webworkdgx/vllm_qwen2_5}
+      # API Tokens (Set these in your environment or .env file)
+      - TRANSLATION_API_TOKEN=${TRANSLATION_API_TOKEN}
+      - GENERAL_API_TOKEN=${GENERAL_API_TOKEN}
     networks:
       - digitalisation_toolkit-network
     depends_on:

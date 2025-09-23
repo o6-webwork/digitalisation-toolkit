@@ -61,7 +61,8 @@ general_api_url = os.getenv("GENERAL_API_URL")
 # Sidebar inputs
 default_url = translation_api_url if selected_page.title in translation_pages else general_api_url
 user_input_url = st.sidebar.text_input("API URL", value=default_url, key="openaiapiurl")
-user_input_token = st.sidebar.text_input("API Token", value="token-abc123", key="openapitoken")
+default_token = os.getenv("TRANSLATION_API_TOKEN") if selected_page.title in translation_pages else os.getenv("GENERAL_API_TOKEN")
+user_input_token = st.sidebar.text_input("API Token", value=default_token or "", key="openapitoken", type="password")
 
 # Track if user edited URL
 if user_input_url != default_url:
