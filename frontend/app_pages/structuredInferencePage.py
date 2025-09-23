@@ -24,17 +24,6 @@ if 'request' not in st.session_state or 'required_schema' not in st.session_stat
     st.warning("Prompt configuration has not been set. Please configure your prompt on the previous page or load a configuration file.")
     #st.stop()
 
-def load_config(uploaded_file):
-    try:
-        config = json.load(uploaded_file)
-        # st.session_state.prompt_value = config.get('prompt_value', '')
-        # st.session_state.headerlist = config.get('headerlist', [])
-        st.session_state.request = config.get('request', '')
-        st.session_state.required_schema = config.get('required_schema', [])
-        st.success('Configuration loaded successfully.')
-    except Exception as e:
-        st.error(f'Failed to load configuration: {e}')
-
 # Function to load configuration from uploaded file
 def load_config(uploaded_file):
     try:

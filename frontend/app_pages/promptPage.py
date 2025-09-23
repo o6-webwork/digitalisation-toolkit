@@ -185,13 +185,13 @@ if st.session_state.fields:
                     st.session_state.fields[i]["value"] = field_value
 
                 elif field["type"] == "boolean":
-                    if field["value"] != bool:
+                    if not isinstance(field["value"], bool):
                         field["value"] = True
                     field_value = st.selectbox(f"Example Boolean {i+1} Value", [True, False], index=int(field["value"]), key=f"value_bool_{i}")
                     st.session_state.fields[i]["value"] = field_value
 
                 elif field["type"] == "list":
-                    if type(field["value"]) != list:
+                    if not isinstance(field["value"], list):
                         field["value"] = []
                     field_value = st.text_area(f"Example List {i+1} Values (comma-separated)", value=",".join(field["value"]), key=f"value_list_{i}")
                     st.session_state.fields[i]["value"] = list(map(str.strip, field_value.split(',')))
@@ -209,7 +209,7 @@ if st.session_state.fields:
 
             with col3:
                 # Button to remove field
-                remove_button = st.button(f"Remove", key=f"remove_{i}")
+                remove_button = st.button("Remove", key=f"remove_{i}")
                 if remove_button:
                     st.session_state.fields.pop(i)
                     st.rerun()  # Rerun the app to update the UI after removal

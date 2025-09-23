@@ -5,7 +5,6 @@ import pandas as pd
 # Replace st_aggrid with st.dataframe if AgGrid causes issues
 from st_aggrid import AgGrid, GridOptionsBuilder
 import time
-from dotenv import load_dotenv
 import os
 import numpy as np
 
@@ -258,7 +257,7 @@ else:
                 # Directly add non-string columns without translation
                 preview_data[column] = preview_df[column].fillna("").tolist()  # Replace NaN with empty string
 
-        if breakflag == False:
+        if not breakflag:
             st.subheader("Translation Preview")
 
             # List to store the interleaved column names (original + translated)

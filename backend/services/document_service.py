@@ -1,4 +1,3 @@
-import os
 import fitz
 import torch
 from pypdf import PdfReader, PdfWriter

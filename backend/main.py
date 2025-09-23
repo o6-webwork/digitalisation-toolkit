@@ -1,14 +1,13 @@
 import mimetypes
 import tempfile
 import io
-from fastapi import FastAPI, File, UploadFile, Form, Body
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
 
 # Local imports
 from config.settings import settings
-from models.schemas import TranslationRequest, HeaderItem, PromptPageRequest, StructuredInferenceRequest, FreeProcessingRequest
+from models.schemas import TranslationRequest, PromptPageRequest, StructuredInferenceRequest, FreeProcessingRequest
 from services.translation_service import TranslationService
 from services.document_service import DocumentService
 from services.llm_service import LLMService

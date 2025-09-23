@@ -85,7 +85,7 @@ def fetch_models(show_errors=False):
         else:
             raise Exception(f"Response status {response.status_code}")
 
-    except requests.exceptions.MissingSchema as schema_err:
+    except requests.exceptions.MissingSchema:
         if show_errors:
             error_popup(f"Missing Schema Error: Invalid URL '{user_input_url}'. No scheme supplied. Perhaps you meant 'http://{user_input_url}'?")
     
@@ -137,4 +137,3 @@ else:
 
 # Run the selected page
 selected_page.run()
-

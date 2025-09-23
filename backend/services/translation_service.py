@@ -1,4 +1,3 @@
-import asyncio
 from typing import Union, List
 from utils.api_client import APIClient
 from utils.logger import app_logger
