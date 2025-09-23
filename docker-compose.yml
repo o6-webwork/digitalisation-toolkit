@@ -18,7 +18,7 @@ services:
     env_file:
       - ./frontend/.env
     environment:
-      # Standardized LLM API URLs (base URLs without /v1/chat/completions)
+      # LLM API URLs
       - TRANSLATION_API_URL=http://webworkdgx/vllm_sealion
       - GENERAL_API_URL=http://webworkdgx/vllm_qwen2_5
       # API Tokens
@@ -44,12 +44,6 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      # Standardized LLM API URLs (base URLs without /v1/chat/completions)
-      - TRANSLATION_API_URL=http://webworkdgx/vllm_sealion
-      - GENERAL_API_URL=http://webworkdgx/vllm_qwen2_5
-      # API Tokens
-      - TRANSLATION_API_TOKEN=token-abc123
-      - GENERAL_API_TOKEN=token-abc123
 
 networks:
   digitalisation_toolkit-network:

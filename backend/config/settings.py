@@ -5,13 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    # API Configuration
-    TRANSLATION_API_URL: str = os.getenv("TRANSLATION_API_URL", "")
-    TRANSLATION_API_TOKEN: str = os.getenv("TRANSLATION_API_TOKEN", "token-abc123")
+    # Model Configuration (API URLs and tokens are provided by frontend)
     TRANSLATION_MODEL: str = os.getenv("TRANSLATION_MODEL", "sealion")
-    
-    GENERAL_API_URL: str = os.getenv("GENERAL_API_URL", os.getenv("LLM_API_URL", "http://localhost:11437/v1/chat/completions"))
-    GENERAL_API_TOKEN: str = os.getenv("GENERAL_API_TOKEN", os.getenv("LLM_API_TOKEN", "token-abc123"))
     LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen2.5")
     
     # Docling Configuration
@@ -20,14 +15,17 @@ class Settings:
     
     @staticmethod
     def get_api_config(url: Optional[str] = None, authorization: Optional[str] = None, model_name: Optional[str] = None) -> tuple[str, str, str]:
-        """Get API configuration with fallbacks to environment variables"""
-        final_url = url if url else Settings.GENERAL_API_URL
-        final_auth = authorization if authorization else Settings.TRANSLATION_API_TOKEN
+        """Get API configuration - all parameters must be provided by frontend"""
+        if not url:
+            raise ValueError("API URL must be provided by frontend.")
+
+        if not authorization:
+            raise ValueError("API token must be provided by frontend.")
+
+        final_url = url
+        final_auth = authorization
         final_model = model_name if model_name else Settings.LLM_MODEL
-        
-        if not final_auth or not final_url:
-            raise ValueError("API URL or token is not configured.")
-            
+
         return final_url, final_auth, final_model
 
 settings = Settings()
