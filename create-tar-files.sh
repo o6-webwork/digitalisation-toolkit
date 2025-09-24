@@ -14,7 +14,7 @@ mkdir -p tar-files
 echo "Building Docker images..."
 docker compose build
 
-# Tag images with clean names
+# Tag images with clean project-service naming
 echo "Tagging images with clean names..."
 docker tag digitalisation-toolkit-digitalisation_toolkit-frontend:latest digitalisation-toolkit-frontend:latest
 docker tag digitalisation-toolkit-digitalisation_toolkit-backend:latest digitalisation-toolkit-backend:latest
