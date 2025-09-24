@@ -13,8 +13,7 @@ services:
   digitalisation_toolkit-frontend:
     container_name: digitalisation_toolkit-frontend
     restart: unless-stopped
-    build:
-      context: ./frontend
+    image: digitalisation-toolkit-frontend:latest
     env_file:
       - ./frontend/.env
     environment:
@@ -31,8 +30,7 @@ services:
 
   digitalisation_toolkit-backend:
     container_name: digitalisation_toolkit-backend
-    build:
-      context: ./backend
+    image: digitalisation-toolkit-backend:latest
     env_file:
       - ./backend/.env
     networks:

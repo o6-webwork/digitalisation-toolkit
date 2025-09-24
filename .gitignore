@@ -187,6 +187,9 @@ backend/docling-models/
 data/
 datasets/
 
+# Docker tar files
+tar-files/*.tar
+
 # Streamlit
 .streamlit/
 

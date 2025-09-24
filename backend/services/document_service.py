@@ -255,9 +255,21 @@ class DocumentService:
 
     def _reformat_bbox(self, docling_bbox: Dict[str, float]) -> tuple:
         """Reformat bounding box coordinates from Docling format"""
-        return (
-            docling_bbox.get('l'),
-            docling_bbox.get('t'),
-            docling_bbox.get('r'),
-            docling_bbox.get('b')
-        )
+        try:
+            # Safely convert coordinates, handling large integers
+            left = float(docling_bbox.get('l', 0))
+            top = float(docling_bbox.get('t', 0))
+            right = float(docling_bbox.get('r', 0))
+            bottom = float(docling_bbox.get('b', 0))
+
+            # Clamp to reasonable PDF coordinate bounds
+            max_coord = 99999.0
+            left = max(-max_coord, min(max_coord, left))
+            top = max(-max_coord, min(max_coord, top))
+            right = max(-max_coord, min(max_coord, right))
+            bottom = max(-max_coord, min(max_coord, bottom))
+
+            return (left, top, right, bottom)
+        except (ValueError, OverflowError) as e:
+            app_logger.warning(f"Invalid bbox coordinates, using default: {e}")
+            return (0.0, 0.0, 100.0, 100.0)
