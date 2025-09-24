@@ -257,19 +257,19 @@ class DocumentService:
         """Reformat bounding box coordinates from Docling format"""
         try:
             # Safely convert coordinates, handling large integers
-            l = float(docling_bbox.get('l', 0))
-            t = float(docling_bbox.get('t', 0))
-            r = float(docling_bbox.get('r', 0))
-            b = float(docling_bbox.get('b', 0))
+            left = float(docling_bbox.get('l', 0))
+            top = float(docling_bbox.get('t', 0))
+            right = float(docling_bbox.get('r', 0))
+            bottom = float(docling_bbox.get('b', 0))
 
             # Clamp to reasonable PDF coordinate bounds
             max_coord = 99999.0
-            l = max(-max_coord, min(max_coord, l))
-            t = max(-max_coord, min(max_coord, t))
-            r = max(-max_coord, min(max_coord, r))
-            b = max(-max_coord, min(max_coord, b))
+            left = max(-max_coord, min(max_coord, left))
+            top = max(-max_coord, min(max_coord, top))
+            right = max(-max_coord, min(max_coord, right))
+            bottom = max(-max_coord, min(max_coord, bottom))
 
-            return (l, t, r, b)
+            return (left, top, right, bottom)
         except (ValueError, OverflowError) as e:
             app_logger.warning(f"Invalid bbox coordinates, using default: {e}")
             return (0.0, 0.0, 100.0, 100.0)
