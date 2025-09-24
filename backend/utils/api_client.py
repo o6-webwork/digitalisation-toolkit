@@ -6,7 +6,7 @@ from .logger import app_logger
 class APIClient:
     """Centralized async API client for external services with connection pooling"""
 
-    def __init__(self, base_url: str, authorization: str, timeout: int = 600):
+    def __init__(self, base_url: str, authorization: str, timeout: int = 14400):
         self.base_url = base_url.rstrip('/')
         self.headers = {
             "Content-Type": "application/json",
