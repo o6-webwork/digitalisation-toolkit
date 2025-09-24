@@ -13,11 +13,8 @@ load_dotenv()
 API_URL = os.getenv("API_URL")
 API_PORT = os.getenv("API_PORT")
 
-# Use the appropriate caching decorator based on your Streamlit version
-try:
-    cache_function = st.cache_data  # For Streamlit 1.18 and above
-except AttributeError:
-    cache_function = st.experimental_memo  # For older versions
+# Use modern Streamlit caching
+cache_function = st.cache_data
 
 if "system_prompt" not in st.session_state:
     st.session_state.system_prompt = ""
@@ -42,7 +39,7 @@ def process_with_model(text, system_prompt, user_prompt):
                 'text': text,
                 'system_prompt': system_prompt,
                 'user_prompt': user_prompt,
-                'url': st.session_state.openaiapiurl + "/v1/chat/completions",
+                'url': st.session_state.openaiapiurl,
                 'authorization':st.session_state.openapitoken,
                 'model_name':st.session_state['selected_model']
             }

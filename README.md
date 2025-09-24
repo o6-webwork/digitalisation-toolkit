@@ -1,5 +1,9 @@
 # Digitalisation Toolkit
 
+## Prerequisites
+
+**CUDA Compatibility**: Before building the Docker containers, verify that your GPU and CUDA drivers are compatible with CUDA 12.1 (cu121), which is specified in `backend/Dockerfile` line 7. If your system uses a different CUDA version, you may need to update the PyTorch installation URL in the Dockerfile accordingly.
+
 ## Usage
 
 1. Download Docling model folder from
@@ -11,6 +15,8 @@ git lfs install
 ```
 cd backend
 git clone https://huggingface.co/ds4sd/docling-models
+cd docling-models
+git checkout 094b693
 ```
 
 2. Download the following zip files from
@@ -38,12 +44,12 @@ docker compose build
 docker compose up -d
 ```
 
-## vllm
-### SEA-LION
-- Download [Gemma2 9B CPT SEA-LIONv3 Instruct](https://huggingface.co/aisingapore/Gemma-SEA-LION-v3-9B-IT).
-- Copy the model into the `models` directory. The path is `./models/Gemma-SEA-LION-v3-9B-IT`.
+## System Configuration
 
-### QWEN2.5
-- Download [Qwen2.5 Coder 14B Instruct](https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct).
-- Copy the model into the `models` directory. The path is `./models/Qwen2.5-Coder-14B-Instruct`.
+The application is configured with the following limits to handle large document processing:
 
+- **Processing Timeout**: 4 hours (14,400 seconds) for long-running operations
+- **File Upload Limit**: 5GB maximum file size
+- **Request Timeout**: Extended timeouts for PDF translation and document processing
+
+These settings are optimized for processing large PDFs and complex documents that may require significant processing time.
