@@ -53,3 +53,44 @@ The application is configured with the following limits to handle large document
 - **Request Timeout**: Extended timeouts for PDF translation and document processing
 
 These settings are optimized for processing large PDFs and complex documents that may require significant processing time.
+
+## Offline Deployment
+
+For environments without internet access, you can create Docker image tar files for offline deployment:
+
+### Creating Tar Files
+
+1. **Automated approach**: Run the provided script:
+```bash
+./create-tar-files.sh
+```
+
+2. **Manual approach**:
+```bash
+# Build and tag images
+docker compose build
+docker tag digitalisation-toolkit-digitalisation_toolkit-frontend:latest digitalisation-toolkit-frontend:latest
+docker tag digitalisation-toolkit-digitalisation_toolkit-backend:latest digitalisation-toolkit-backend:latest
+
+# Create tar files
+mkdir -p tar-files
+docker save digitalisation-toolkit-frontend:latest -o tar-files/digitalisation-toolkit-frontend.tar
+docker save digitalisation-toolkit-backend:latest -o tar-files/digitalisation-toolkit-backend.tar
+docker save nginx:1.27.2-alpine -o tar-files/nginx-1.27.2-alpine.tar
+```
+
+### Using Tar Files in Offline Environment
+
+1. **Copy the tar-files directory** to your offline environment
+2. **Load the images**:
+```bash
+docker load -i tar-files/digitalisation-toolkit-frontend.tar
+docker load -i tar-files/digitalisation-toolkit-backend.tar
+docker load -i tar-files/nginx-1.27.2-alpine.tar
+```
+3. **Run with offline compose file**:
+```bash
+docker compose -f docker-compose.offline.yml up -d
+```
+
+The `docker-compose.offline.yml` file uses pre-built images instead of building from source, making it suitable for offline deployment.
