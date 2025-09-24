@@ -108,21 +108,21 @@ class DocumentService:
                     if page_no not in doc_info:
                         continue
 
-                # Apply translated text elements
-                for text_info in doc_info[page_no]["Texts"]:
-                    try:
-                        text_content = text_info["text"]
-                        if text_content.strip() and text_content in translation_map:
-                            text_bbox = text_info["bbox"]
-                            translated_text = translation_map[text_content]
-                            text_rect = fitz.Rect(self._reformat_bbox(text_bbox))
-                            page.add_redact_annot(text_rect, text="")
-                            page.apply_redactions()
-                            page.insert_htmlbox(
-                                text_rect,
-                                f"<div style='font-family: sans-serif;'>{translated_text}</div>",
-                                oc=ocg_xref
-                            )
+                    # Apply translated text elements
+                    for text_info in doc_info[page_no]["Texts"]:
+                        try:
+                            text_content = text_info["text"]
+                            if text_content.strip() and text_content in translation_map:
+                                text_bbox = text_info["bbox"]
+                                translated_text = translation_map[text_content]
+                                text_rect = fitz.Rect(self._reformat_bbox(text_bbox))
+                                page.add_redact_annot(text_rect, text="")
+                                page.apply_redactions()
+                                page.insert_htmlbox(
+                                    text_rect,
+                                    f"<div style='font-family: sans-serif;'>{translated_text}</div>",
+                                    oc=ocg_xref
+                                )
                         except KeyError as e:
                             app_logger.warning(f"KeyError processing text: {str(e)}")
                             continue

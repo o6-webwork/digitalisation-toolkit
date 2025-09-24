@@ -165,52 +165,9 @@ else:
             else:
                 spinner_message = "🔄 Translating PDF... This may take several minutes for large documents."
 
-            # Show spinner with additional timer for long documents
-            if estimated_seconds and estimated_seconds > 300:  # 5+ minutes
-                # Create containers for progress info
-                progress_container = st.container()
-                with progress_container:
-                    timer_placeholder = st.empty()
-                    progress_placeholder = st.empty()
-
-                import threading
-                import time
-
-                # Timer variables
-                start_time = time.time()
-                translation_complete = threading.Event()
-
-                def update_timer():
-                    """Update timer display while processing"""
-                    while not translation_complete.is_set():
-                        elapsed = time.time() - start_time
-                        elapsed_str = f"{int(elapsed // 60)}m {int(elapsed % 60)}s"
-
-                        if estimated_seconds:
-                            progress_pct = min((elapsed / estimated_seconds) * 100, 99)
-                            timer_placeholder.write(f"⏱️ Elapsed: {elapsed_str} | Estimated: {estimated_time} | Progress: ~{progress_pct:.0f}%")
-                        else:
-                            timer_placeholder.write(f"⏱️ Elapsed: {elapsed_str}")
-
-                        time.sleep(1)
-
-                # Start timer thread
-                timer_thread = threading.Thread(target=update_timer)
-                timer_thread.daemon = True
-                timer_thread.start()
-
-                # Show spinner while processing
-                with st.spinner(spinner_message):
-                    translated_pdf = translate_pdf(file_path, input_language, output_language, include_tbl_content)
-
-                # Stop timer
-                translation_complete.set()
-                timer_placeholder.empty()
-                progress_placeholder.empty()
-            else:
-                # Simple spinner for quick translations
-                with st.spinner(spinner_message):
-                    translated_pdf = translate_pdf(file_path, input_language, output_language, include_tbl_content)
+            # Show spinner while processing
+            with st.spinner(spinner_message):
+                translated_pdf = translate_pdf(file_path, input_language, output_language, include_tbl_content)
 
             if translated_pdf:
                 try:
