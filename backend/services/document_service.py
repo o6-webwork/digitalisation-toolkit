@@ -15,10 +15,16 @@ class DocumentService:
     def __init__(self):
         self.translation_service = TranslationService()
 
-        # Log GPU availability for informational purposes
+        # Configure GPU memory management to prevent child process crashes
         if torch.cuda.is_available():
             gpu_count = torch.cuda.device_count()
             app_logger.info(f"Detected {gpu_count} CUDA devices: {[f'cuda:{i}' for i in range(gpu_count)]}")
+
+            # Set memory management to prevent fragmentation and conflicts
+            torch.cuda.empty_cache()
+            # Allow memory to be freed when processes exit
+            import os
+            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
         else:
             app_logger.info("No CUDA devices detected, using CPU")
 
@@ -170,6 +176,11 @@ class DocumentService:
             if os.path.exists(output_path):
                 os.unlink(output_path)
                 app_logger.info(f"Cleaned up temporary output file: {output_path}")
+
+            # Clear GPU cache to prevent memory buildup
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                app_logger.debug("GPU cache cleared")
 
 
     def _convert_document_structure(self, file_path: str) -> Dict[str, Any]:
