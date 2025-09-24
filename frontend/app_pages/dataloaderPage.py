@@ -6,7 +6,7 @@ from streamlit_pdf_viewer import pdf_viewer
 st.title("Data Loader")
 
 # Display processing limits info
-st.info("📋 **Processing Limits:** Maximum file size: 5GB | Processing timeout: 4 hours for large documents")
+st.info("📋 **Processing Limits:** Maximum file size: 2GB | Processing timeout: 4 hours for large documents")
 
 # Initialize session state
 if "data_loaded" not in st.session_state:
