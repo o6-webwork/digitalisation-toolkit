@@ -20,16 +20,11 @@ class DocumentService:
     def __init__(self):
         self.translation_service = TranslationService()
 
-        # Configure single GPU usage to prevent parallel processing conflicts
+        # Log GPU availability without restrictive memory management
         if torch.cuda.is_available():
-            # Force usage of only GPU 0 to avoid multi-GPU conflicts
-            torch.cuda.set_device(0)
-            app_logger.info("Using single GPU (cuda:0) to prevent parallel processing conflicts")
-
-            # Set memory management for single GPU usage
+            gpu_count = torch.cuda.device_count()
+            app_logger.info(f"Detected {gpu_count} CUDA devices: {[f'cuda:{i}' for i in range(gpu_count)]}")
             torch.cuda.empty_cache()
-            os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
         else:
             app_logger.info("No CUDA devices detected, using CPU")
 
