@@ -59,17 +59,21 @@ else:
 
     # Display PDF info and time estimation
     def get_pdf_info_and_estimate(pdf_file):
-        """Get page count and estimate processing time"""
+        """Get page count and estimate processing time based on file size"""
         try:
             pdf_bytes = io.BytesIO(pdf_file.getvalue())
             doc = fitz.open("pdf", pdf_bytes)
             page_count = len(doc)
             doc.close()
 
-            # Time estimation based on empirical data: 333 pages = 75 minutes
-            # That's approximately 13.5 seconds per page
-            seconds_per_page = 13.5
-            estimated_seconds = page_count * seconds_per_page
+            # Get file size in MB
+            file_size_bytes = len(pdf_file.getvalue())
+            file_size_mb = file_size_bytes / (1024 * 1024)
+
+            # Time estimation based on empirical data: 96MB = 80 minutes
+            # That's approximately 50 seconds per MB
+            seconds_per_mb = 50
+            estimated_seconds = file_size_mb * seconds_per_mb
 
             # Convert to human readable format
             if estimated_seconds < 60:
@@ -85,22 +89,25 @@ else:
                 else:
                     time_str = f"{hours} hours"
 
-            return page_count, time_str, estimated_seconds
+            return page_count, time_str, estimated_seconds, file_size_mb
         except Exception:
-            return None, None, None
+            return None, None, None, None
 
     # Show PDF information and time estimate
     if st.session_state.pdf:
-        page_count, estimated_time, estimated_seconds = get_pdf_info_and_estimate(st.session_state.pdf)
+        page_count, estimated_time, estimated_seconds, file_size_mb = get_pdf_info_and_estimate(st.session_state.pdf)
 
         if page_count:
             st.subheader("📄 Document Information")
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
                 st.metric("Pages", page_count)
 
             with col2:
+                st.metric("File Size", f"{file_size_mb:.1f} MB")
+
+            with col3:
                 st.metric("Estimated Time", estimated_time)
 
             # Show warning for long documents
@@ -158,10 +165,10 @@ else:
                 file_path = temp_file.name
 
             # Get time estimate for spinner message
-            page_count, estimated_time, estimated_seconds = get_pdf_info_and_estimate(st.session_state.pdf)
+            page_count, estimated_time, estimated_seconds, file_size_mb = get_pdf_info_and_estimate(st.session_state.pdf)
 
             if estimated_time:
-                spinner_message = f"🔄 Translating {page_count} pages... Estimated time: {estimated_time}"
+                spinner_message = f"🔄 Translating {file_size_mb:.1f}MB PDF ({page_count} pages)... Estimated time: {estimated_time}"
             else:
                 spinner_message = "🔄 Translating PDF... This may take several minutes for large documents."
 

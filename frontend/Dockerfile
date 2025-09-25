@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 8501
 
 # Run the Streamlit app
-CMD ["streamlit", "run", "app.py", "--server.maxUploadSize=2048"]
+CMD ["streamlit", "run", "app.py", "--server.maxUploadSize=100"]

@@ -1,5 +1,9 @@
 import fitz
 import torch
+import os
+import gc
+import time
+import psutil
 from pypdf import PdfReader, PdfWriter
 from docling.datamodel.base_models import InputFormat
 from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -8,6 +12,7 @@ from typing import Dict, Any
 from config.settings import settings
 from utils.logger import app_logger
 from .translation_service import TranslationService
+import tempfile
 
 class DocumentService:
     """Service for handling document processing and conversion"""
@@ -38,6 +43,14 @@ class DocumentService:
         try:
             app_logger.info("Starting PDF translation")
 
+            # Initial single GPU memory management
+            if torch.cuda.is_available():
+                torch.cuda.set_device(0)  # Ensure we're using GPU 0
+                torch.cuda.empty_cache()
+                gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                allocated_memory = torch.cuda.memory_allocated(0) / 1024**3
+                app_logger.info(f"GPU 0 memory - Total: {gpu_memory:.1f}GB, Allocated: {allocated_memory:.1f}GB")
+
             # Validate PDF
             reader = PdfReader(file_path)
             total_pages = len(reader.pages)
@@ -48,7 +61,7 @@ class DocumentService:
 
         # Process document structure
         app_logger.info("Processing PDF document")
-        redoc = self._convert_document_structure(file_path)
+        redoc = self._convert_document_structure(file_path, input_lang)
         doc_info = redoc["Pages"]
 
         # Collect all texts for batch translation
@@ -81,18 +94,23 @@ class DocumentService:
                                 "bbox": cell["bbox"]
                             }
 
-        # Batch translate all texts
+        # Batch translate all texts with timeout monitoring
         app_logger.info(f"Batch translating {len(all_texts)} text elements")
+        translation_start_time = time.time()
+
         if all_texts:
-            translated_texts = await self.translation_service.translate_batch(
-                all_texts, input_lang, output_lang, url, authorization, model_name
-            )
-            translation_map = dict(zip(all_texts, translated_texts))
+            try:
+                translated_texts = await self.translation_service.translate_batch(
+                    all_texts, input_lang, output_lang, url, authorization, model_name
+                )
+                translation_map = dict(zip(all_texts, translated_texts))
+                translation_time = time.time() - translation_start_time
+                app_logger.info(f"Translation completed in {translation_time:.2f} seconds")
+            except Exception as e:
+                app_logger.error(f"Translation failed after {time.time() - translation_start_time:.2f}s: {str(e)}")
+                raise
         else:
             translation_map = {}
-
-        import tempfile
-        import os
 
         # Create temporary output file
         output_fd, output_path = tempfile.mkstemp(suffix=".pdf", prefix="translated_")
@@ -124,46 +142,131 @@ class DocumentService:
                                     f"<div style='font-family: sans-serif;'>{translated_text}</div>",
                                     oc=ocg_xref
                                 )
-                        except KeyError as e:
-                            app_logger.warning(f"KeyError processing text: {str(e)}")
+                            elif text_content.strip():
+                                app_logger.warning(f"Translation missing for text: '{text_content[:50]}...'")
+                        except (KeyError, ValueError, Exception) as e:
+                            app_logger.error(f"Error processing text element on page {page_no}: {str(e)}")
                             continue
 
                     # Apply translated table elements if requested
                     if include_tbl:
                         for table_info in doc_info[page_no]["Tables"]:
-                            for cell in table_info["table_cells"]:
-                                table_text = cell["text"]
-                                if table_text.strip() and table_text in translation_map:
-                                    table_bbox = cell["bbox"]
-                                    translated_text = translation_map[table_text]
-                                    table_rect = fitz.Rect(self._reformat_bbox(table_bbox))
-                                    page.add_redact_annot(table_rect, text="")
-                                    page.apply_redactions()
-                                    page.insert_htmlbox(
-                                        table_rect,
-                                        f"<div style='font-family: sans-serif;'>{translated_text}</div>",
-                                        oc=ocg_xref
-                                    )
+                            try:
+                                for cell in table_info["table_cells"]:
+                                    try:
+                                        table_text = cell["text"]
+                                        if table_text.strip() and table_text in translation_map:
+                                            table_bbox = cell["bbox"]
+                                            translated_text = translation_map[table_text]
+                                            table_rect = fitz.Rect(self._reformat_bbox(table_bbox))
+                                            page.add_redact_annot(table_rect, text="")
+                                            page.apply_redactions()
+                                            page.insert_htmlbox(
+                                                table_rect,
+                                                f"<div style='font-family: sans-serif;'>{translated_text}</div>",
+                                                oc=ocg_xref
+                                            )
+                                        elif table_text.strip():
+                                            app_logger.warning(f"Translation missing for table text: '{table_text[:50]}...'")
+                                    except (KeyError, ValueError, Exception) as e:
+                                        app_logger.error(f"Error processing table cell on page {page_no}: {str(e)}")
+                                        continue
+                            except Exception as e:
+                                app_logger.error(f"Error processing table on page {page_no}: {str(e)}")
+                                continue
 
                     page.clean_contents()
 
-                doc.subset_fonts()
-                doc.ez_save(output_path, clean=True, deflate=True, garbage=4)
+                # Clear GPU cache and system memory before memory-intensive PDF operations
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                    app_logger.debug("GPU cache cleared before PDF finalization")
 
-            # Compress using PdfWriter
-            writer = PdfWriter(clone_from=output_path)
-            for page in writer.pages:
-                for img in page.images:
-                    img.replace(img.image, quality=80)
+                # Force garbage collection before intensive operations
+                gc.collect()
 
-            with open(output_path, "wb") as f:
-                writer.write(f)
+                app_logger.info("Starting PDF finalization and compression")
+                try:
+                    # Monitor memory before finalization
+                    if torch.cuda.is_available():
+                        gpu_mem_before = torch.cuda.memory_allocated(0) / 1024**3
+                        app_logger.info(f"GPU memory before finalization: {gpu_mem_before:.2f}GB")
+
+                    # Subset fonts to reduce memory usage
+                    doc.subset_fonts()
+                    app_logger.debug("Font subsetting completed")
+
+                    # Save with aggressive compression and cleanup
+                    doc.ez_save(output_path, clean=True, deflate=True, garbage=4, linear=True)
+                    app_logger.info("PDF saved successfully")
+
+                except Exception as save_error:
+                    app_logger.error(f"Error during PDF finalization: {str(save_error)}")
+                    # Attempt fallback save without some optimizations
+                    try:
+                        app_logger.info("Attempting fallback save without linear optimization")
+                        doc.save(output_path, clean=True, deflate=True)
+                        app_logger.info("PDF saved with fallback method")
+                    except Exception as fallback_error:
+                        app_logger.error(f"Fallback save also failed: {str(fallback_error)}")
+                        raise Exception(f"PDF finalization failed: {str(save_error)}")
+
+            # Compress using PdfWriter with memory management
+            app_logger.info("Starting PDF compression")
+            compression_successful = False
+            try:
+                writer = PdfWriter(clone_from=output_path)
+
+                # Process images in batches to manage memory
+                page_count = len(writer.pages)
+                app_logger.info(f"Compressing images in {page_count} pages")
+
+                # Make batch size configurable, default to 50
+                batch_size = getattr(settings, 'PDF_COMPRESSION_BATCH_SIZE', 50)
+                for i in range(0, page_count, batch_size):
+                    end_idx = min(i + batch_size, page_count)
+                    app_logger.debug(f"Processing image batch {i+1}-{end_idx}")
+
+                    try:
+                        for page_idx in range(i, end_idx):
+                            page = writer.pages[page_idx]
+                            for img in page.images:
+                                img.replace(img.image, quality=80)
+                    except Exception as batch_error:
+                        app_logger.warning(f"Error in compression batch {i+1}-{end_idx}: {str(batch_error)}")
+                        # Continue with next batch
+                        continue
+
+                    # Force garbage collection between batches
+                    gc.collect()
+
+                # Write compressed PDF
+                with open(output_path, "wb") as f:
+                    writer.write(f)
+
+                compression_successful = True
+                app_logger.info("PDF compression completed successfully")
+
+            except Exception as e:
+                app_logger.warning(f"PDF compression failed, using uncompressed version: {str(e)}")
+                compression_successful = False
+
+            if not compression_successful:
+                app_logger.info("Proceeding with uncompressed PDF")
 
             # Read final optimized PDF into memory
+            app_logger.info("Reading final PDF into memory")
             with open(output_path, "rb") as f:
                 pdf_bytes = f.read()
 
-            app_logger.info("PDF translation completed successfully")
+            # Final memory cleanup before return
+            gc.collect()
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                app_logger.debug("Final GPU cache clear completed")
+
+            app_logger.info(f"PDF translation completed successfully, final size: {len(pdf_bytes)} bytes")
             return pdf_bytes
 
         finally:
@@ -178,13 +281,14 @@ class DocumentService:
                 app_logger.debug("GPU cache cleared")
 
 
-    def _convert_document_structure(self, file_path: str) -> Dict[str, Any]:
+    def _convert_document_structure(self, file_path: str, input_lang: str = None) -> Dict[str, Any]:
         """Convert PDF to structured format using Docling"""
         app_logger.info("Setting up Docling pipeline")
 
-        # Configure OCR options
+        # Configure OCR options with user-specified or default language detection
+        ocr_languages = [input_lang] if input_lang and input_lang != 'auto' else ["en"]
         ocr_options = EasyOcrOptions(
-            lang=["en"],
+            lang=ocr_languages,  # Default to English if no language specified
             model_storage_directory=settings.MODEL_STORAGE_DIRECTORY,
             download_enabled=False
         )
@@ -201,9 +305,31 @@ class DocumentService:
         
         try:
             app_logger.info("Converting document")
+            start_time = time.time()
+
+            # Monitor memory before conversion
+            if torch.cuda.is_available():
+                gpu_memory_before = torch.cuda.memory_allocated(0) / 1024**3
+                app_logger.info(f"GPU memory before conversion: {gpu_memory_before:.2f}GB")
+
+            system_memory_before = psutil.virtual_memory().percent
+            app_logger.info(f"System memory usage before conversion: {system_memory_before:.1f}%")
+
             result = converter.convert(file_path).document
+
+            conversion_time = time.time() - start_time
+            app_logger.info(f"Document conversion completed in {conversion_time:.2f} seconds")
+
+            # Monitor memory after conversion
+            if torch.cuda.is_available():
+                gpu_memory_after = torch.cuda.memory_allocated(0) / 1024**3
+                app_logger.info(f"GPU memory after conversion: {gpu_memory_after:.2f}GB")
+
+            system_memory_after = psutil.virtual_memory().percent
+            app_logger.info(f"System memory usage after conversion: {system_memory_after:.1f}%")
+
         except Exception as e:
-            app_logger.error(f"Document conversion error: {str(e)}")
+            app_logger.error(f"Document conversion error after {time.time() - start_time:.2f}s: {str(e)}")
             raise Exception(f"Document conversion error: {str(e)}")
         
         doc = result.export_to_dict()
