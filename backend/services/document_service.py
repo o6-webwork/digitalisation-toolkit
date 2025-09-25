@@ -15,16 +15,11 @@ class DocumentService:
     def __init__(self):
         self.translation_service = TranslationService()
 
-        # Configure GPU memory management to prevent child process crashes
+        # Log GPU availability without restrictive memory management
         if torch.cuda.is_available():
             gpu_count = torch.cuda.device_count()
             app_logger.info(f"Detected {gpu_count} CUDA devices: {[f'cuda:{i}' for i in range(gpu_count)]}")
-
-            # Set memory management to prevent fragmentation and conflicts
             torch.cuda.empty_cache()
-            # Allow memory to be freed when processes exit
-            import os
-            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
         else:
             app_logger.info("No CUDA devices detected, using CPU")
 
