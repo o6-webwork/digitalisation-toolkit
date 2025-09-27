@@ -3,7 +3,7 @@ services:
     container_name: digitalisation_toolkit-nginx
     image: nginx:1.27.2-alpine
     ports:
-      - "8080:80"
+      - "8091:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - /etc/timezone:/etc/timezone:ro
@@ -11,7 +11,7 @@ services:
     environment:
       - TZ=Asia/Singapore
     networks:
-      - digitalisation_toolkit-network
+      - shared-network
     restart: unless-stopped
 
   digitalisation_toolkit-frontend:
@@ -33,7 +33,7 @@ services:
       - TRANSLATION_API_TOKEN=${TRANSLATION_API_TOKEN}
       - GENERAL_API_TOKEN=${GENERAL_API_TOKEN}
     networks:
-      - digitalisation_toolkit-network
+      - shared-network
     depends_on:
       - digitalisation_toolkit-nginx
 
@@ -46,7 +46,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     networks:
-      - digitalisation_toolkit-network
+      - shared-network
     restart: unless-stopped
     depends_on:
       - digitalisation_toolkit-nginx
@@ -59,6 +59,6 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 networks:
-  digitalisation_toolkit-network:
-    name: digitalisation_toolkit-network
+  shared-network:
+    name: shared-network
     driver: bridge
