@@ -25,10 +25,10 @@ app = FastAPI(title="Digitalisation Toolkit API", version="1.0.0")
 # Allow cross-origin requests from specific origins only
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 @app.on_event("startup")

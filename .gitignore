@@ -268,3 +268,6 @@ jspm_packages/
 
 # Claude Code instructions
 CLAUDE.md
+
+# Overrides for docker-compose
+docker-compose.override.yml
