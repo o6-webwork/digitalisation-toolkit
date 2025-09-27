@@ -182,13 +182,9 @@ else:
                     doc = fitz.open("pdf", pdf_check)
 
                     if len(doc) > 0:
+                        # Store translated PDF in session state
+                        st.session_state.translated_pdf = translated_pdf.getvalue()
                         st.success("🎉 Translation completed successfully!")
-                        st.download_button(
-                            "📥 Download Translated PDF",
-                            translated_pdf.getvalue(),
-                            file_name="translated.pdf",
-                            mime="application/pdf"
-                        )
                     else:
                         st.error("Translation completed, but the document is empty.")
                 except Exception as e:
@@ -204,3 +200,12 @@ else:
                 pass  # File already cleaned up or doesn't exist
         else:
             st.error("Please upload a PDF file.")
+
+    # Show download button if translated PDF exists in session state
+    if 'translated_pdf' in st.session_state and st.session_state.translated_pdf:
+        st.download_button(
+            "📥 Download Translated PDF",
+            st.session_state.translated_pdf,
+            file_name="translated.pdf",
+            mime="application/pdf"
+        )
